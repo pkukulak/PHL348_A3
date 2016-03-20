@@ -13,7 +13,6 @@ if __name__ == '__main__':
     (train_in, train_t,
     valid_in, valid_t,
     test_in, test_t)    = train_valid_test_split(data)
-
     _, M = train_in.shape
 
     # Tensorflow variables.
@@ -33,7 +32,7 @@ if __name__ == '__main__':
     y = tf.nn.softmax(layer2)
     y_ = tf.placeholder(tf.float32, [None, NUM_TARGS])
 
-    lam = 0.00000
+    lam = 0.0000
     decay_penalty =lam*tf.reduce_sum(tf.square(W0))+lam*tf.reduce_sum(tf.square(W1))
     NLL = -tf.reduce_sum(y_*tf.log(y))+decay_penalty
 
@@ -48,16 +47,16 @@ if __name__ == '__main__':
         
     for i in xrange(NUM_ITERS):
         batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE)
-        for batch_in, batch_t in zip(batches_in, batches_t):
-            batch_in = batch_in.reshape(-1, M)
-            batch_t = encode_one_hot(batch_t)
-            sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
-            if i % 10 == 0:
-                print "i=",i
-                test_x = test_in.reshape(-1, M)
-                test_y = encode_one_hot(test_t)
-                print "Test:", sess.run(accuracy, feed_dict={x: test_x, y_: test_y})
+        batch_in, batch_t = random.choice(zip(batches_in, batches_t))
+        batch_in = batch_in.reshape(-1, M)
+        batch_t = encode_one_hot(batch_t.T)
+        sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
+        if i % 10 == 0:
+            print "i=",i
+            test_x = test_in.reshape(-1, M)
+            test_y = encode_one_hot(test_t.T)
+            print "Test:", sess.run(accuracy, feed_dict={x: test_x, y_: test_y})
 
-                print "Train:", sess.run(accuracy, feed_dict={x: batch_in, y_: batch_t})
-                print "Penalty:", sess.run(decay_penalty)
+            print "Train:", sess.run(accuracy, feed_dict={x: train_in, y_: encode_one_hot(train_t.T)})
+            print "Penalty:", sess.run(decay_penalty)
                 

@@ -13,16 +13,21 @@ import matplotlib.cbook as cbook
 import matplotlib.image as mpimg
 
 TRAIN_SIZE = 70
-VALID_SIZE = 10
-TEST_SIZE = 10
-IMG_DIM = (40, 40)
+VALID_SIZE = 0
+TEST_SIZE = 30
+IMG_DIM = (60, 60)
 FLAT_IMG_DIM = IMG_DIM[0] * IMG_DIM[1]
 
 MALE_ACT = ['Gerard Butler', 'Daniel Radcliffe', 'Michael Vartan']
 FEMALE_ACT = ['Lorraine Bracco', 'Peri Gilpin', 'Angie Harmon']
+ACT = MALE_ACT + FEMALE_ACT
+NUM_TARGS = len(ACT)
 
 ACT_TO_ID = {'butler': 0, 'radcliffe': 1, 'vartan': 2,
              'bracco': 3, 'gilpin': 4, 'harmon': 5}
+
+MALE_FOLDER = 'cropped/male/'
+FEMALE_FOLDER = 'cropped/female'
 
 def timeout(func, args=(), kwargs={}, timeout_duration=1, default=None):
     '''From:
@@ -46,6 +51,31 @@ def timeout(func, args=(), kwargs={}, timeout_duration=1, default=None):
         return False
     else:
         return it.result
+
+def encode_one_hot(labels):
+    ''''
+    Return a n x k matrix, where n is the number of data points
+    and k is the number of classes. This matrix is the one-hot
+    encoding of the input labels.
+    '''
+    n = labels.size
+    encoded = np.zeros((n, NUM_LABELS))
+    encoded[np.arange(n), labels.astype(int)] = 1.0
+    return encoded.astype(float64)
+
+def rgb2gray(rgb):
+    '''Author: Michael Guerzhoy
+    Return the grayscale version of the RGB image rgb as a 2D numpy array
+    whose range is 0..1
+    Arguments:
+    rgb -- an RGB image, represented as a numpy array of size n x m x 3. The
+    range of the values is 0..255
+    '''
+    if len(rgb.shape) == 2:
+        return rgb
+    r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    return gray/255.0
 
 def process_image(uncropped, cropped, dims):
     '''
@@ -71,7 +101,6 @@ def train_valid_test_split(data):
     targets, target_indices = np.unique(data[:, -1], return_index=True)
     target_indices = np.append(target_indices, N)
     num_targets = targets.size
-
     train_in = np.empty([TRAIN_SIZE * num_targets, M-1], dtype=data.dtype)
     train_targ = np.empty([TRAIN_SIZE * num_targets, 1], dtype=data.dtype)
 
@@ -83,11 +112,10 @@ def train_valid_test_split(data):
     for i in xrange(num_targets):
         train_range = xrange(TRAIN_SIZE * i, TRAIN_SIZE * (i + 1))
         valid_range = xrange(VALID_SIZE * i, VALID_SIZE * (i + 1))
-        
         test_start = target_indices[i+1] - TEST_SIZE
+
         no_test = data[prev:test_start]
         np.random.shuffle(no_test)
-
         t_in = no_test[:TRAIN_SIZE, :M-1]
         t_targ = no_test[:TRAIN_SIZE, M-1].reshape(-1, 1)
         train_in[train_range] = t_in
@@ -130,7 +158,7 @@ def encode_one_hot(labels):
     encoding of the input labels.
     '''
     n = labels.size
-    encoded = np.zeros((n, NUM_LABELS))
+    encoded = np.zeros((n, NUM_TARGS))
     encoded[np.arange(n), labels.astype(int)] = 1.0
     return encoded.astype(float64)
 
@@ -141,16 +169,17 @@ def load_data(folder):
     '''
     data = np.empty([1, FLAT_IMG_DIM + 1])
     files = [f for f in os.listdir(folder) if re.search('\d', f)]
-    actors = map(split_to_lower, SUBSET_ACT)
+    actors = map(split_to_lower, ACT)
     for filename in files:
         d = re.search("\d", filename)
         identity = filename[:d.start()]
         if identity not in actors:
             continue
         try:
-            id = IDENTITY_TO_ACT[identity]
-            img = imread(folder + filename).reshape(IMG_DIM)
-            img = np.append(img, id).reshape(-1, FLAT_IMG_DIM + 1)
+            id = ACT_TO_ID[identity]
+            img = imresize(imread(folder + filename), IMG_DIM)
+            img = rgb2gray(img).reshape(1, FLAT_IMG_DIM)
+            img = np.append(img, id).reshape(1, FLAT_IMG_DIM + 1)
             data = np.append(data, img, axis=0)
         except ValueError:
             print "{} ill-formatted. Deleting.".format(filename)
@@ -180,6 +209,8 @@ def get_test_data(data, targets, target_indices):
 
         prev = target_indices[i+1] + 1
 
+    return test_in, test_targ
+
 def download_data():
     '''
     Download and save all data from the internet.
@@ -196,7 +227,7 @@ def download_data():
                 file_hash = line.split()[-1]
                 uncropped_fn = "uncropped/male/"+filename
                 cropped_fn = "cropped/male/"+filename
-                timeout(testfile.retrieve, (line.split()[4], uncropped_fn), {}, 15)
+                timeout(testfile.retrieve, (line.split()[4], uncropped_fn), {}, 30)
 
                 if not os.path.isfile("uncropped/male/"+filename):
                     continue
