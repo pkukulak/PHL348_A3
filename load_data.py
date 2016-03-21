@@ -135,6 +135,40 @@ def train_valid_test_split(data):
             valid_in.astype(np.float), valid_targ, 
               test_in.astype(np.float), test_targ)
 
+
+def train_valid_test_split_part2(data, targets):
+    '''
+    Return a training set, a validation set, a test set,
+    and all of their respective targets. All are obtained from
+    the input data.
+    '''
+    #data = data[data[:,-1].argsort()]
+    prev = 0 
+    train_inds, valid_inds, test_inds = get_partition() # This function is not done yet
+    return (data[train_inds], targets[train_inds],
+            data[valid_inds], targets[valid_inds],
+            data[train_inds], targets[test_inds])
+
+def get_partition():
+    """ Return 3 sets of mutually exclusive indices.
+         test_indices has 10
+        valid_indices has 15
+        trian_indices has 70
+    So the numbers should be in the range (0, 95).
+    Seeded for reproducibility.
+    """
+    # fix all this up
+    #total_data_count= (70+10+15)
+    #np.random.seed(1)
+    #indices = set()
+    #while len(indices) < total_data_count: 
+    #    indices.add(np.random.randint(0, total_data_count))
+    #indices=list(indices)
+    #test_indices = indices[:(size//2)]
+    #validation_indices = indices[(size//2):20]
+    #return train_indices, validation_indices, test_indices
+    return 0, 0, 0
+
 def split_to_lower(s):
     '''
     Return the last name of s in lowercase letters.
@@ -175,7 +209,7 @@ def load_data(folder):
     targets = np.empty([])
     files = [f for f in os.listdir(folder) if re.search('\d', f)]
     actors = map(split_to_lower, ACT)
-    for filename in files:
+    for filename in files[:10]:
         d = re.search("\d", filename)
         identity = filename[:d.start()]
         if identity not in actors:
@@ -197,7 +231,43 @@ def load_data(folder):
         except ValueError:
             print "{} ill-formatted. Deleting.".format(filename)
             os.remove(folder + filename)
-    return gray_data[1:], color_data[1:], targets.reshape(-1, 1)
+    #return gray_data[1:], color_data[1:], targets.reshape(-1, 1)
+    #return  color_data[1:], targets.reshape(-1, 1)
+    return  color_data[1:361], targets.reshape(-1, 1)[1:361]
+
+def load_colored_data():
+    '''
+    Load 60 photos for each person (male and female).
+    Return an NxM array of flattened images, and a Nx1 array of targets.
+
+    Here M = 227*227*3
+         N = 60*6
+    '''
+    folders = ['cropped/female/', 'cropped/male/']
+    color_data = np.empty([1, ALEX_DIM[0]*ALEX_DIM[1]*3])
+    targets = np.empty([])
+    for folder in folders:
+        files = [f for f in os.listdir(folder) if re.search('\d', f)]
+        actors = map(split_to_lower, ACT)
+        for filename in files[:4]:
+            d = re.search("\d", filename)
+            identity = filename[:d.start()]
+            if identity not in actors:
+                continue
+            try:
+                id = ACT_TO_ID[identity]
+                img = imread(folder + filename)
+                color_img = imresize(img, ALEX_DIM)
+                color_img = color_img.reshape((1,ALEX_DIM[0]*ALEX_DIM[1]*3))
+                color_data = np.append(color_data, color_img, axis=0)
+
+                targets = np.append(targets, id)
+            except ValueError:
+                print "{} ill-formatted. Deleting.".format(filename)
+                os.remove(folder + filename)
+    print(targets.reshape(-1, 1)[1:])
+    return color_data[1:], targets.reshape(-1, 1)[1:]
+
 
 def get_test_data(data, targets, target_indices):
     '''
@@ -208,11 +278,15 @@ def get_test_data(data, targets, target_indices):
     prev = 0
     N, M = data.shape
     num_targets = targets.size
+    print(N)
+    print(M)
+    print(num_targets)
 
     test_in = np.empty([TEST_SIZE * num_targets, M-1], dtype=data.dtype)
     test_targ = np.empty([TEST_SIZE * num_targets, 1], dtype=data.dtype)
 
     for i in xrange(num_targets):
+        print('i ' + str(i))
         test_range = xrange(TEST_SIZE * i, TEST_SIZE * (i+1))
         test_start = target_indices[i+1] - TEST_SIZE
         test_end = target_indices[i+1]
@@ -282,6 +356,8 @@ def download_data():
                     os.remove(uncropped_fn)
                 except:
                     print "Error occured : {}".format(filename)
+
+
 
 if __name__ == "__main__":
     if not os.path.exists("cropped/"):
