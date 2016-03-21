@@ -15,8 +15,10 @@ import matplotlib.patches as mpatches
 
 TRAIN_SIZE = 70
 VALID_SIZE = 10
-TEST_SIZE = 20
+TEST_SIZE = 15
 IMG_DIM = (60, 60)
+ALEX_DIM = (227, 227)
+ALEX_FLAT_DIM = ALEX_DIM[0] * ALEX_DIM[1]
 FLAT_IMG_DIM = IMG_DIM[0] * IMG_DIM[1]
 
 MALE_ACT = ['Gerard Butler', 'Daniel Radcliffe', 'Michael Vartan']
@@ -168,7 +170,9 @@ def load_data(folder):
     Load all of the photos located in the given folder
     into a numpy array with labels appended to each datapoint.
     '''
-    data = np.empty([1, FLAT_IMG_DIM + 1])
+    gray_data = np.empty([1, FLAT_IMG_DIM + 1])
+    color_data = np.empty([1, ALEX_DIM[0], ALEX_DIM[1], 3])
+    targets = np.empty([])
     files = [f for f in os.listdir(folder) if re.search('\d', f)]
     actors = map(split_to_lower, ACT)
     for filename in files:
@@ -178,14 +182,22 @@ def load_data(folder):
             continue
         try:
             id = ACT_TO_ID[identity]
-            img = imresize(imread(folder + filename), IMG_DIM)
-            img = rgb2gray(img).reshape(1, FLAT_IMG_DIM)
-            img = np.append(img, id).reshape(1, FLAT_IMG_DIM + 1)
-            data = np.append(data, img, axis=0)
+            img = imread(folder + filename)
+
+            color_img = imresize(img, ALEX_DIM)
+            color_img = color_img.reshape((1,) + color_img.shape)
+            color_data = np.append(color_data, color_img, axis=0)
+
+            gray_img = imresize(img, IMG_DIM)
+            gray_img = rgb2gray(gray_img).reshape(1, FLAT_IMG_DIM)
+            gray_img = np.append(gray_img, id).reshape(1, FLAT_IMG_DIM + 1)
+            gray_data = np.append(gray_data, gray_img, axis=0)
+
+            targets = np.append(targets, id)
         except ValueError:
             print "{} ill-formatted. Deleting.".format(filename)
             os.remove(folder + filename)
-    return data[1:]
+    return gray_data[1:], color_data[1:], targets.reshape(-1, 1)
 
 def get_test_data(data, targets, target_indices):
     '''

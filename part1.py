@@ -7,8 +7,8 @@ NUM_TARGS = 6
 NUM_ITERS = 5000
 
 if __name__ == '__main__':
-    male_data          = load_data('cropped/male/')
-    female_data        = load_data('cropped/female/')
+    male_data, _, __   = load_data('cropped/male/')
+    female_data, _, __ = load_data('cropped/female/')
     data               = np.vstack((male_data, female_data))
     (train_in, train_t,
     valid_in, valid_t,
