@@ -4,7 +4,7 @@ import tensorflow as tf
 N_HID = 300
 BATCH_SIZE = 60
 NUM_TARGS = 6
-NUM_ITERS = 10000
+NUM_ITERS = 5000
 
 if __name__ == '__main__':
     male_data          = load_data('cropped/male/')
@@ -14,7 +14,10 @@ if __name__ == '__main__':
     valid_in, valid_t,
     test_in, test_t)    = train_valid_test_split(data)
     _, M = train_in.shape
-
+    train_y = encode_one_hot(train_t.T)
+    test_y = encode_one_hot(test_t.T)
+    valid_y = encode_one_hot(valid_t.T)
+    
     # Tensorflow variables.
     x  = tf.placeholder(tf.float32, [None, M])
 
@@ -44,7 +47,16 @@ if __name__ == '__main__':
 
     correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        
+    
+    test_accs = []
+    test_lps = []
+
+    valid_accs = []
+    valid_lps = []
+
+    train_accs = []
+    train_lps = []
+
     for i in xrange(NUM_ITERS):
         batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE)
         batch_in, batch_t = random.choice(zip(batches_in, batches_t))
@@ -53,10 +65,44 @@ if __name__ == '__main__':
         sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
         if i % 10 == 0:
             print "i=",i
-            test_x = test_in.reshape(-1, M)
-            test_y = encode_one_hot(test_t.T)
-            print "Test:", sess.run(accuracy, feed_dict={x: test_x, y_: test_y})
+            valid_x = valid_in.reshape(-1, M)
+            valid_acc = sess.run(accuracy, feed_dict={x: valid_x, y_: valid_y})
+            valid_accs += [valid_acc]
+            valid_lp = sess.run(NLL, feed_dict={x: valid_x, y_: valid_y})
+            valid_lps += [valid_lp]
 
-            print "Train:", sess.run(accuracy, feed_dict={x: train_in, y_: encode_one_hot(train_t.T)})
-            print "Penalty:", sess.run(decay_penalty)
-                
+            test_x = test_in.reshape(-1, M)
+            test_acc = sess.run(accuracy, feed_dict={x: test_x, y_: test_y})
+            test_accs += [test_acc]
+            test_lp = sess.run(NLL, feed_dict={x: test_x, y_: test_y})
+            test_lps += [test_lp]
+
+            train_acc = sess.run(accuracy, feed_dict={x: train_in, y_: train_y})
+            train_accs += [train_acc]
+            train_lp = sess.run(NLL, feed_dict={x: train_in, y_: train_y})
+            train_lps += [train_lp]
+            
+            print 'TEST ACCURACY  = ', test_acc
+            print 'VALID ACCURACY = ', valid_acc
+            print 'TRAIN ACCURACY = ', train_acc
+           
+
+    red_patch = mpatches.Patch(color='red', label='Validation')
+    blue_patch = mpatches.Patch(color='blue', label='Training')
+    green_patch = mpatches.Patch(color='green', label='Test')
+
+    # Plot the learning curves.
+    plt.figure()
+    plt.xlabel('Iteration')
+    plt.ylabel('Cost')
+    plt.plot(train_lps, 'b', valid_lps, 'r', test_lps, 'g')
+    plt.legend(handles=[red_patch, blue_patch, green_patch], loc=1)
+    plt.show()
+
+    plt.figure()
+    plt.xlabel('Iteration')
+    plt.ylabel('Accuracy')
+    plt.plot(train_accs, 'b', valid_accs, 'r', test_accs, 'g')
+    plt.legend(handles=[red_patch, blue_patch, green_patch], loc=4)
+    plt.show()
+

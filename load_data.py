@@ -11,10 +11,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cbook as cbook
 import matplotlib.image as mpimg
+import matplotlib.patches as mpatches
 
 TRAIN_SIZE = 70
-VALID_SIZE = 0
-TEST_SIZE = 30
+VALID_SIZE = 10
+TEST_SIZE = 20
 IMG_DIM = (60, 60)
 FLAT_IMG_DIM = IMG_DIM[0] * IMG_DIM[1]
 
