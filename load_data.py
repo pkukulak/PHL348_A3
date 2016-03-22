@@ -144,12 +144,13 @@ def train_valid_test_split_part2(data, targets):
     '''
     #data = data[data[:,-1].argsort()]
     prev = 0 
-    train_inds, valid_inds, test_inds = get_partition() # This function is not done yet
+    train_inds, valid_inds, test_inds = get_partition(data, targets)
+
     return (data[train_inds], targets[train_inds],
             data[valid_inds], targets[valid_inds],
             data[train_inds], targets[test_inds])
 
-def get_partition():
+def get_partition(data, targets):
     """ Return 3 sets of mutually exclusive indices.
          test_indices has 10
         valid_indices has 15
@@ -167,7 +168,31 @@ def get_partition():
     #test_indices = indices[:(size//2)]
     #validation_indices = indices[(size//2):20]
     #return train_indices, validation_indices, test_indices
-    return 0, 0, 0
+    N = targets.size
+    unique_t, indices_t = np.unique(targets, return_index=True)
+    indices_t = np.append(indices_t, N)
+    num_targets = unique_t.size
+    train_indices = np.empty([1,])
+    valid_indices = np.empty([1,])
+    test_indices = np.empty([1,])
+    
+    for i in xrange(num_targets - 1):
+        start = indices_t[i]
+        end   = indices_t[i + 1]
+        
+        train_start = start
+        valid_start = train_start + TRAIN_SIZE
+        test_start = end - TEST_SIZE
+
+        train_range = np.arange(train_start, valid_start)
+        valid_range = np.arange(valid_start, test_start)
+        test_range  = np.arange(test_start, end)
+
+        train_indices = np.concatenate((train_indices, train_range))
+        valid_indices = np.concatenate((valid_indices, valid_range))
+        test_indices  = np.concatenate((test_indices, test_range))
+
+    return train_indices[1:], valid_indices[1:], test_indices[1:]
 
 def split_to_lower(s):
     '''
