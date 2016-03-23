@@ -15,17 +15,20 @@ from numpy import *
 import os
 from pylab import *
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cbook as cbook
 import time
 from scipy.misc import imread
 from scipy.misc import imresize
+import matplotlib.pyplot as plt
+import matplotlib.cbook as cbook
 import matplotlib.image as mpimg
+import matplotlib.patches as mpatches
 from scipy.ndimage import filters
 import urllib
 from numpy import random
+from random import choice
 
 from load_data import load_data, train_valid_test_split, get_batches, train_valid_test_split_part2, load_colored_data, get_partition
+from load_data import encode_one_hot
 
 import tensorflow as tf
 
@@ -155,7 +158,7 @@ def run_alex_net(i):
     sess = tf.Session()
     sess.run(init)
 
-    output = sess.run(conv4)
+    output = sess.run(conv4) # TODO: NORMALIZE
     return output
 
 '''
@@ -210,9 +213,9 @@ output = sess.run(prob)
 N_HID = 300
 BATCH_SIZE = 1 # recommended by Guerzhoy himself.
 NUM_TARGS = 6
-NUM_ITERS = 10000
+NUM_ITERS = 6000 # Change this to 10k and rerun.
 
-data, targets = load_colored_data() # Gets all the data.
+data, targets = load_colored_data()
 
 # Load the pretrained network for Alexnet.
 net_data = load("bvlc_alexnet.npy").item()
@@ -220,39 +223,124 @@ net_data = load("bvlc_alexnet.npy").item()
 ################################################################################
 # Get the activations by running alexnet over our data.
 ################################################################################
-#print(data.shape) # (N, 154587)
 N, M = data.shape
-activations = np.empty((1, 13,13,384))
-format = lambda d: run_alex_net(d.reshape((1, 227,227,3)).astype(float32))
-for j in range(N):
-    activations = np.append(activations, format(data[j]), axis=0)
-activations = activations[1:]
-
+activations = run_alex_net(data.reshape((N, 227,227,3)).astype(float32))
+activations = activations /np.amax(activations) # Normalize the activations
 
 ################################################################################
 # Input the activations into our training data now.
 ################################################################################
-# We have: activations (N, 13, 13, 384)
-#          targets     (N , 1)
-# So now we need to partition the data.
-#  Test set: 6*10
-# Valid set 6*15
-# Train set 6*70
 
 # Partition the data up. See load_data.py.
 (train_in, train_t,
 valid_in, valid_t,
 test_in, test_t) = train_valid_test_split_part2(activations, targets) # Split everything up.
 
-#for j in xrange(NUM_ITERS):
-        #batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE) # BATCH_SIZE=1
-        #activation = run_alex_net(batch_in)
-        #batch_in = batch_in[0]
-        #batch_t = batch_t[0]
-        #batch_in, batch_t = random.choice(zip(batches_in, batches_t))
-        #batch_in = batch_in.reshape(-1, M)
-        #batch_t = encode_one_hot(batch_t.T)
-        #print(batch_t.shape)
-        #sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
+print(train_in.shape) # Should be (420, 13,13,384)
+print(valid_in.shape) # Should be (60,  13,13,384)
+print(test_in.shape)  # Should be (90,  13,13,384)
+
+train_in = train_in.reshape((420, 13*13*384))
+valid_in = valid_in.reshape((60, 13*13*384))
+test_in = test_in.reshape((90, 13*13*384))
+
+print(train_in.shape) # Should be (420, 13*13*384)
+print(valid_in.shape) # Should be (60,  13*13*384)
+print(test_in.shape)  # Should be (90,  13*13*384)
+
+train_y = encode_one_hot(train_t.T) # Transpose?
+valid_y = encode_one_hot(valid_t.T)
+test_y = encode_one_hot(test_t.T)
+
+_, M = train_in.shape
+
+# Tensorflow variables.
+x  = tf.placeholder(tf.float32, [None, M]) 
+
+# Hidden layer weights and bias.
+W0 = tf.Variable(tf.random_normal([M, N_HID], stddev=0.01))
+b0 = tf.Variable(tf.random_normal([N_HID], stddev=0.01))
+
+# Output layer weights. 
+W1 = tf.Variable(tf.random_normal([N_HID, NUM_TARGS], stddev=0.01))
+b1 = tf.Variable(tf.random_normal([NUM_TARGS], stddev=0.01))
+
+layer1 = tf.nn.tanh(tf.matmul(x, W0) + b0) 
+layer2 = tf.matmul(layer1, W1) + b1
+
+y = tf.nn.softmax(layer2)
+y_ = tf.placeholder(tf.float32, [None, NUM_TARGS])
+
+
+lam = 0.0000
+decay_penalty =lam*tf.reduce_sum(tf.square(W0))+lam*tf.reduce_sum(tf.square(W1))
+NLL = -tf.reduce_sum(y_*tf.log(y))+decay_penalty
+
+train_step = tf.train.GradientDescentOptimizer(0.001).minimize(NLL)
+
+init = tf.initialize_all_variables()
+sess = tf.Session()
+sess.run(init)
+correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+test_accs = []
+test_lps = []
+
+valid_accs = []
+valid_lps = []
+
+train_accs = []
+train_lps = []
+
+for i in xrange(NUM_ITERS):
+    batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE) # BATCH_SIZE=1
+    batch_in, batch_t = choice(zip(batches_in, batches_t))
+
+    batch_in = batch_in.reshape(-1, M)
+    batch_t = encode_one_hot(batch_t.T)
+    sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
+    if i % 50 == 0:
+        print "i=",i
+        valid_x = valid_in.reshape(-1, M)
+        valid_acc = sess.run(accuracy, feed_dict={x: valid_x, y_: valid_y})
+        valid_accs += [valid_acc]
+        valid_lp = sess.run(NLL, feed_dict={x: valid_x, y_: valid_y})
+        valid_lps += [valid_lp]
+
+        test_x = test_in.reshape(-1, M)
+        test_acc = sess.run(accuracy, feed_dict={x: test_x, y_: test_y})
+        test_accs += [test_acc]
+        test_lp = sess.run(NLL, feed_dict={x: test_x, y_: test_y})
+        test_lps += [test_lp]
+
+        train_acc = sess.run(accuracy, feed_dict={x: train_in, y_: train_y})
+        train_accs += [train_acc]
+        train_lp = sess.run(NLL, feed_dict={x: train_in, y_: train_y})
+        train_lps += [train_lp]
+
+        print 'TEST ACCURACY  = ', test_acc
+        print 'VALID ACCURACY = ', valid_acc
+        print 'TRAIN ACCURACY = ', train_acc
+
+red_patch = mpatches.Patch(color='red', label='Validation')
+blue_patch = mpatches.Patch(color='blue', label='Training')
+green_patch = mpatches.Patch(color='green', label='Test')
+
+# Plot the learning curves.
+plt.figure()
+plt.xlabel('Iteration')
+plt.ylabel('Cost')
+plt.plot(train_lps, 'b', valid_lps, 'r', test_lps, 'g')
+plt.legend(handles=[red_patch, blue_patch, green_patch], loc=1)
+plt.show()
+
+plt.figure()
+plt.xlabel('Iteration')
+plt.ylabel('Accuracy')
+plt.plot(train_accs, 'b', valid_accs, 'r', test_accs, 'g')
+plt.legend(handles=[red_patch, blue_patch, green_patch], loc=4)
+plt.show()
+
 
 
