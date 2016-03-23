@@ -21,8 +21,8 @@ uncropped/
 ==================
 Running the code
 ==================
-There are 5 files, part1.py - part5.py.
-Simply run "pythong part<N>.py" and everything
+There are 5 files, part1.py through part5.py.
+Simply run "python part<N>.py" and everything
 should be generated for you.
 
 
