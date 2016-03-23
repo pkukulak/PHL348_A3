@@ -130,7 +130,7 @@ def run_alex_net(i):
     sess = tf.Session()
     sess.run(init)
 
-    output = sess.run(conv4, feed_dict={x:i}) # TODO: NORMALIZE
+    output = sess.run(conv4, feed_dict={x:i})
     return output
 
 ################################################################################

@@ -46,30 +46,12 @@ NUM_TARGS=6
 x_dummy = (random.random((1,)+ xdim)/255.).astype(float32)
 i = x_dummy.copy()
 img = imresize(((imread("cropped/female/bracco7.jpg")[:,:,:3]).astype(float32)), (227,227,3))
-#i[0,:,:,:] = imresize(((imread("cropped/female/bracco1.jpg")[:,:,:3]).astype(float32)), (227,227,3))
 i[0,:,:,:] = img
-print(img.shape)
-#plt.imshow(img)
-#plt.show()
+plt.imshow(img)
+plt.show()
 
 i = i-mean(i)
 ################################################################################
-
-# (self.feed('data')
-#         .conv(11, 11, 96, 4, 4, padding='VALID', name='conv1')
-#         .lrn(2, 2e-05, 0.75, name='norm1')
-#         .max_pool(3, 3, 2, 2, padding='VALID', name='pool1')
-#         .conv(5, 5, 256, 1, 1, group=2, name='conv2')
-#         .lrn(2, 2e-05, 0.75, name='norm2')
-#         .max_pool(3, 3, 2, 2, padding='VALID', name='pool2')
-#         .conv(3, 3, 384, 1, 1, name='conv3')
-#         .conv(3, 3, 384, 1, 1, group=2, name='conv4')
-#         .conv(3, 3, 256, 1, 1, group=2, name='conv5')
-#         .fc(4096, name='fc6')
-#         .fc(4096, name='fc7')
-#         .fc(1000, relu=False, name='fc8')
-#         .softmax(name='prob'))
-
 
 net_data = load("bvlc_alexnet.npy").item()
 
