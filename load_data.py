@@ -15,7 +15,7 @@ import matplotlib.patches as mpatches
 
 TRAIN_SIZE = 70
 VALID_SIZE = 10
-TEST_SIZE = 15
+TEST_SIZE = 20
 IMG_DIM = (60, 60)
 ALEX_DIM = (227, 227)
 ALEX_FLAT_DIM = ALEX_DIM[0] * ALEX_DIM[1]
@@ -135,7 +135,6 @@ def train_valid_test_split(data):
             valid_in.astype(np.float), valid_targ, 
               test_in.astype(np.float), test_targ)
 
-
 def train_valid_test_split_part2(data, targets):
     '''
     Return a training set, a validation set, a test set,
@@ -150,7 +149,7 @@ def train_valid_test_split_part2(data, targets):
             data[valid_inds], targets[valid_inds],
             data[train_inds], targets[test_inds])
 
-def get_partition(data, targets):
+def get_partition(targets):
     """ Return 3 sets of mutually exclusive indices.
          test_indices has 10
         valid_indices has 15
@@ -224,41 +223,29 @@ def encode_one_hot(labels):
     encoded[np.arange(n), labels.astype(int)] = 1.0
     return encoded.astype(float64)
 
-def load_data(folder):
+def load_data_part1(folder):
     '''
     Load all of the photos located in the given folder
     into a numpy array with labels appended to each datapoint.
     '''
-    gray_data = np.empty([1, FLAT_IMG_DIM + 1])
-    color_data = np.empty([1, ALEX_DIM[0], ALEX_DIM[1], 3])
-    targets = np.empty([])
+    data = np.empty([1, FLAT_IMG_DIM + 1])
     files = [f for f in os.listdir(folder) if re.search('\d', f)]
     actors = map(split_to_lower, ACT)
-    for filename in files[:10]:
+    for filename in files:
         d = re.search("\d", filename)
         identity = filename[:d.start()]
         if identity not in actors:
             continue
         try:
             id = ACT_TO_ID[identity]
-            img = imread(folder + filename)
-
-            color_img = imresize(img, ALEX_DIM)
-            color_img = color_img.reshape((1,) + color_img.shape)
-            color_data = np.append(color_data, color_img, axis=0)
-
-            gray_img = imresize(img, IMG_DIM)
-            gray_img = rgb2gray(gray_img).reshape(1, FLAT_IMG_DIM)
-            gray_img = np.append(gray_img, id).reshape(1, FLAT_IMG_DIM + 1)
-            gray_data = np.append(gray_data, gray_img, axis=0)
-
-            targets = np.append(targets, id)
+            img = imresize(imread(folder + filename), IMG_DIM)
+            img = rgb2gray(img).reshape(1, FLAT_IMG_DIM)
+            img = np.append(img, id).reshape(1, FLAT_IMG_DIM + 1)
+            data = np.append(data, img, axis=0)
         except ValueError:
             print "{} ill-formatted. Deleting.".format(filename)
             os.remove(folder + filename)
-    #return gray_data[1:], color_data[1:], targets.reshape(-1, 1)
-    #return  color_data[1:], targets.reshape(-1, 1)
-    return  color_data[1:361], targets.reshape(-1, 1)[1:361]
+    return data[1:]
 
 def load_colored_data():
     '''
@@ -293,7 +280,6 @@ def load_colored_data():
     print(targets.reshape(-1, 1)[1:])
     return color_data[1:], targets.reshape(-1, 1)[1:]
 
-
 def get_test_data(data, targets, target_indices):
     '''
     Returning a test set and corresponding targets.
@@ -303,15 +289,11 @@ def get_test_data(data, targets, target_indices):
     prev = 0
     N, M = data.shape
     num_targets = targets.size
-    print(N)
-    print(M)
-    print(num_targets)
 
     test_in = np.empty([TEST_SIZE * num_targets, M-1], dtype=data.dtype)
     test_targ = np.empty([TEST_SIZE * num_targets, 1], dtype=data.dtype)
 
     for i in xrange(num_targets):
-        print('i ' + str(i))
         test_range = xrange(TEST_SIZE * i, TEST_SIZE * (i+1))
         test_start = target_indices[i+1] - TEST_SIZE
         test_end = target_indices[i+1]
