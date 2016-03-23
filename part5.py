@@ -20,10 +20,12 @@ import matplotlib.cbook as cbook
 import time
 from scipy.misc import imread
 from scipy.misc import imresize
+from scipy.misc import imshow
 import matplotlib.image as mpimg
 from scipy.ndimage import filters
 import urllib
 from numpy import random
+
 
 import tensorflow as tf
 
@@ -37,16 +39,20 @@ ydim = train_y.shape[1]
 
 N_HID=300
 NUM_TARGS=6
-M = 384*13*13
 
 ################################################################################
 #Read Image
 
 x_dummy = (random.random((1,)+ xdim)/255.).astype(float32)
 i = x_dummy.copy()
-i[0,:,:,:] = imresize(((imread("cropped/female/bracco0.jpg")[:,:,:3]).astype(float32)), (227,227,3))
-i = i-mean(i)
+img = imresize(((imread("cropped/female/bracco7.jpg")[:,:,:3]).astype(float32)), (227,227,3))
+#i[0,:,:,:] = imresize(((imread("cropped/female/bracco1.jpg")[:,:,:3]).astype(float32)), (227,227,3))
+i[0,:,:,:] = img
+print(img.shape)
+#plt.imshow(img)
+#plt.show()
 
+i = i-mean(i)
 ################################################################################
 
 # (self.feed('data')
@@ -87,7 +93,8 @@ def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w,  padding="VALID", group
 
 
 
-x = tf.placeholder(tf.float32, i.shape)
+#x = tf.Variable(i)
+x = tf.placeholder(float32, i.shape)
 
 #conv1
 #conv(11, 11, 96, 4, 4, padding='VALID', name='conv1')
@@ -157,6 +164,7 @@ conv4 = tf.nn.relu(conv4_in)
 ################################################################################
 # Extended Network
 ################################################################################
+M = 384*13*13
 W0 = tf.Variable(tf.random_normal([M, N_HID], stddev=0.01))
 b0 = tf.Variable(tf.random_normal([N_HID], stddev=0.01))
 
@@ -174,24 +182,26 @@ out = tf.nn.xw_plus_b(tan1, W1, b1)
 # Take the softmax of the output.
 prob = tf.nn.softmax(out)
 
-################################################################################
-# Initialize and run.
-################################################################################
+# Take only the positive parts of the gradients.
+# Note: we take the gradient wrt to the layer before
+# the softmax. Taking it on the softmaxed layer would
+# sometimes produce 0-gradients. This was suggested on piazza.
+gradients = tf.nn.relu(tf.gradients(out,x)[0])
+
 init = tf.initialize_all_variables()
 sess = tf.Session()
 sess.run(init)
 
-# Get the output on the given image i.
-# Note: The network is untrained, so we do not expect
-# this to get the correct label.
-output = sess.run(prob, feed_dict={x:i})
+# Note: We are only taking grads
+grads = sess.run(gradients, feed_dict={x:i})
+
 ################################################################################
+# Print out the normalized gradients.
+################################################################################
+normalized_grads = grads[0]*(1/np.amax(grads[0]))
+plt.imshow(normalized_grads)
+plt.show()
 
-#Output:
-inds = argsort(output)[0,:]
-for i in range(6):
-    print ACT[inds[-1-i]], output[0, inds[-1-i]]
-
-print("Done Part 4. Exiting...")
+print("Done Part 5. Exiting...")
 
 

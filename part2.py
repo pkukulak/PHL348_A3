@@ -34,37 +34,7 @@ import tensorflow as tf
 
 from caffe_classes import class_names
 
-#train_x = zeros((1, 227,227,3)).astype(float32)
-#train_y = zeros((1, 1000))
-#xdim = train_x.shape[1:]
-#ydim = train_y.shape[1]
-
-################################################################################
-#Read Image
-
-#x_dummy = (random.random((1,)+ xdim)/255.).astype(float32)
-#i = x_dummy.copy()
-#i[0,:,:,:] = (imread("dog.png")[:,:,:3]).astype(float32)
-#i = i-mean(i)
-
-################################################################################
-
-# (self.feed('data')
-#         .conv(11, 11, 96, 4, 4, padding='VALID', name='conv1')
-#         .lrn(2, 2e-05, 0.75, name='norm1')
-#         .max_pool(3, 3, 2, 2, padding='VALID', name='pool1')
-#         .conv(5, 5, 256, 1, 1, group=2, name='conv2')
-#         .lrn(2, 2e-05, 0.75, name='norm2')
-#         .max_pool(3, 3, 2, 2, padding='VALID', name='pool2')
-#         .conv(3, 3, 384, 1, 1, name='conv3')
-#         .conv(3, 3, 384, 1, 1, group=2, name='conv4')
-#         .conv(3, 3, 256, 1, 1, group=2, name='conv5')
-#         .fc(4096, name='fc6')
-#         .fc(4096, name='fc7')
-#         .fc(1000, relu=False, name='fc8')
-#         .softmax(name='prob'))
-
-
+# Copied directly from starter code.
 def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w,  padding="VALID", group=1):
     '''From https://github.com/ethereon/caffe-tensorflow
     '''
@@ -88,9 +58,11 @@ def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w,  padding="VALID", group
 
 
 def run_alex_net(i):
+    ''' Run AlexNet on image(s) i, up to the conv4 layer. 
+        Return the activations.
+    '''
 
-    x = tf.Variable(i)
-    #x = tf.placeholder(tf.float32, [None, M]) 
+    x = tf.placeholder(tf.float32, i.shape) 
 
     #conv1
     #conv(11, 11, 96, 4, 4, padding='VALID', name='conv1')
@@ -158,64 +130,21 @@ def run_alex_net(i):
     sess = tf.Session()
     sess.run(init)
 
-    output = sess.run(conv4) # TODO: NORMALIZE
+    output = sess.run(conv4, feed_dict={x:i}) # TODO: NORMALIZE
     return output
 
-'''
-# The unused part of AlexNet.
-
-#conv5
-#conv(3, 3, 256, 1, 1, group=2, name='conv5')
-k_h = 3; k_w = 3; c_o = 256; s_h = 1; s_w = 1; group = 2 # these are the dimensions of the filter.
-conv5W = tf.Variable(net_data["conv5"][0])
-conv5b = tf.Variable(net_data["conv5"][1])
-conv5_in = conv(conv4, conv5W, conv5b, k_h, k_w, c_o, s_h, s_w, padding="SAME", group=group)
-conv5 = tf.nn.relu(conv5_in)
-
-#maxpool5
-#max_pool(3, 3, 2, 2, padding='VALID', name='pool5')
-k_h = 3; k_w = 3; s_h = 2; s_w = 2; padding = 'VALID'
-maxpool5 = tf.nn.max_pool(conv5, ksize=[1, k_h, k_w, 1], strides=[1, s_h, s_w, 1], padding=padding)
-
-#fc6
-#fc(4096, name='fc6')
-fc6W = tf.Variable(net_data["fc6"][0])
-fc6b = tf.Variable(net_data["fc6"][1])
-fc6 = tf.nn.relu_layer(tf.reshape(maxpool5, [1, int(prod(maxpool5.get_shape()[1:]))]), fc6W, fc6b)
-
-#fc7
-#fc(4096, name='fc7')
-fc7W = tf.Variable(net_data["fc7"][0])
-fc7b = tf.Variable(net_data["fc7"][1])
-fc7 = tf.nn.relu_layer(fc6, fc7W, fc7b)
-
-#fc8
-#fc(1000, relu=False, name='fc8')
-fc8W = tf.Variable(net_data["fc8"][0])
-fc8b = tf.Variable(net_data["fc8"][1])
-fc8 = tf.nn.xw_plus_b(fc7, fc8W, fc8b)
-
-
-#prob
-#softmax(name='prob'))
-
-# 
-prob = tf.nn.softmax(conv4)
-init = tf.initialize_all_variables()
-sess = tf.Session()
-sess.run(init)
-
-output = sess.run(prob)
-'''
 ################################################################################
 # Load up the data.
 ################################################################################
 N_HID = 300
 BATCH_SIZE = 1 # recommended by Guerzhoy himself.
 NUM_TARGS = 6
-NUM_ITERS = 6000 # Change this to 10k and rerun.
+NUM_ITERS = 10000 # Change this to 10k and rerun.
 
+# Load the colored data this time.
+print("Loading colored data...")
 data, targets = load_colored_data()
+print("Done loading data.")
 
 # Load the pretrained network for Alexnet.
 net_data = load("bvlc_alexnet.npy").item()
@@ -223,6 +152,7 @@ net_data = load("bvlc_alexnet.npy").item()
 ################################################################################
 # Get the activations by running alexnet over our data.
 ################################################################################
+print("Computing activations")
 N, M = data.shape
 activations = run_alex_net(data.reshape((N, 227,227,3)).astype(float32))
 activations = activations /np.amax(activations) # Normalize the activations
@@ -231,27 +161,23 @@ activations = activations /np.amax(activations) # Normalize the activations
 # Input the activations into our training data now.
 ################################################################################
 
-# Partition the data up. See load_data.py.
+# Partition the data up (see load_data.py).
 (train_in, train_t,
 valid_in, valid_t,
-test_in, test_t) = train_valid_test_split_part2(activations, targets) # Split everything up.
-
-print(train_in.shape) # Should be (420, 13,13,384)
-print(valid_in.shape) # Should be (60,  13,13,384)
-print(test_in.shape)  # Should be (90,  13,13,384)
+test_in, test_t) = train_valid_test_split_part2(activations, targets)
 
 train_in = train_in.reshape((420, 13*13*384))
 valid_in = valid_in.reshape((60, 13*13*384))
 test_in = test_in.reshape((90, 13*13*384))
 
-print(train_in.shape) # Should be (420, 13*13*384)
-print(valid_in.shape) # Should be (60,  13*13*384)
-print(test_in.shape)  # Should be (90,  13*13*384)
-
-train_y = encode_one_hot(train_t.T) # Transpose?
+train_y = encode_one_hot(train_t.T)
 valid_y = encode_one_hot(valid_t.T)
 test_y = encode_one_hot(test_t.T)
 
+
+# Define our network.
+# 384*13*13 inputs (the activations), 300 hidden units, 6 outputs.
+# Tanh on hidden layers, softmax on output layer.
 _, M = train_in.shape
 
 # Tensorflow variables.
@@ -284,6 +210,7 @@ sess.run(init)
 correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+# Arrays for storing learning curves.
 test_accs = []
 test_lps = []
 
@@ -293,13 +220,17 @@ valid_lps = []
 train_accs = []
 train_lps = []
 
+# Train the network.
+print("Training...")
 for i in xrange(NUM_ITERS):
-    batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE) # BATCH_SIZE=1
+    batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE)
     batch_in, batch_t = choice(zip(batches_in, batches_t))
 
     batch_in = batch_in.reshape(-1, M)
     batch_t = encode_one_hot(batch_t.T)
     sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
+
+    # Check performance every 50 iterations.
     if i % 50 == 0:
         print "i=",i
         valid_x = valid_in.reshape(-1, M)
@@ -323,6 +254,9 @@ for i in xrange(NUM_ITERS):
         print 'VALID ACCURACY = ', valid_acc
         print 'TRAIN ACCURACY = ', train_acc
 
+#####################################################################
+#  Plot the data
+#####################################################################
 red_patch = mpatches.Patch(color='red', label='Validation')
 blue_patch = mpatches.Patch(color='blue', label='Training')
 green_patch = mpatches.Patch(color='green', label='Test')
@@ -335,6 +269,7 @@ plt.plot(train_lps, 'b', valid_lps, 'r', test_lps, 'g')
 plt.legend(handles=[red_patch, blue_patch, green_patch], loc=1)
 plt.show()
 
+# Plot the accuracy.
 plt.figure()
 plt.xlabel('Iteration')
 plt.ylabel('Accuracy')
@@ -342,5 +277,7 @@ plt.plot(train_accs, 'b', valid_accs, 'r', test_accs, 'g')
 plt.legend(handles=[red_patch, blue_patch, green_patch], loc=4)
 plt.show()
 
+
+print("Finished part 2. Exiting...")
 
 
