@@ -85,5 +85,7 @@ def train_nn(n_hid):
     show()
 
 if __name__ == '__main__':
-    #train_nn(300)
+    train_nn(300)
     train_nn(800)
+
+    print("Done Part 3. Exiting...")

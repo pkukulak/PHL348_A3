@@ -141,57 +141,42 @@ def train_valid_test_split_part2(data, targets):
     and all of their respective targets. All are obtained from
     the input data.
     '''
-    #data = data[data[:,-1].argsort()]
+    sorted_targets = targets.argsort(axis=0)
+    data = data[sorted_targets]
     prev = 0 
-    train_inds, valid_inds, test_inds = get_partition(data, targets)
-
+    train_inds, valid_inds, test_inds = get_partition(data, targets[sorted_targets])
     return (data[train_inds], targets[train_inds],
             data[valid_inds], targets[valid_inds],
-            data[train_inds], targets[test_inds])
+            data[test_inds], targets[test_inds])
 
 def get_partition(targets):
     """ Return 3 sets of mutually exclusive indices.
          test_indices has 10
-        valid_indices has 15
-        trian_indices has 70
-    So the numbers should be in the range (0, 95).
-    Seeded for reproducibility.
+         valid_indices has 15
+         trian_indices has 70
     """
-    # fix all this up
-    #total_data_count= (70+10+15)
-    #np.random.seed(1)
-    #indices = set()
-    #while len(indices) < total_data_count: 
-    #    indices.add(np.random.randint(0, total_data_count))
-    #indices=list(indices)
-    #test_indices = indices[:(size//2)]
-    #validation_indices = indices[(size//2):20]
-    #return train_indices, validation_indices, test_indices
-    N = targets.size
+    N = targets.size -1
     unique_t, indices_t = np.unique(targets, return_index=True)
     indices_t = np.append(indices_t, N)
     num_targets = unique_t.size
     train_indices = np.empty([1,])
     valid_indices = np.empty([1,])
     test_indices = np.empty([1,])
-    
-    for i in xrange(num_targets - 1):
+    for i in xrange(num_targets):
         start = indices_t[i]
-        end   = indices_t[i + 1]
-        
         train_start = start
         valid_start = train_start + TRAIN_SIZE
-        test_start = end - TEST_SIZE
+        test_start = valid_start + VALID_SIZE
+        end = test_start + TEST_SIZE
 
         train_range = np.arange(train_start, valid_start)
         valid_range = np.arange(valid_start, test_start)
-        test_range  = np.arange(test_start, end)
+        test_range  = np.arange(test_start,end )
 
         train_indices = np.concatenate((train_indices, train_range))
         valid_indices = np.concatenate((valid_indices, valid_range))
         test_indices  = np.concatenate((test_indices, test_range))
-
-    return train_indices[1:], valid_indices[1:], test_indices[1:]
+    return train_indices[1:].astype(int), valid_indices[1:].astype(int), test_indices[1:].astype(int)
 
 def split_to_lower(s):
     '''
@@ -261,7 +246,7 @@ def load_colored_data():
     for folder in folders:
         files = [f for f in os.listdir(folder) if re.search('\d', f)]
         actors = map(split_to_lower, ACT)
-        for filename in files[:4]:
+        for filename in files:
             d = re.search("\d", filename)
             identity = filename[:d.start()]
             if identity not in actors:
@@ -277,7 +262,6 @@ def load_colored_data():
             except ValueError:
                 print "{} ill-formatted. Deleting.".format(filename)
                 os.remove(folder + filename)
-    print(targets.reshape(-1, 1)[1:])
     return color_data[1:], targets.reshape(-1, 1)[1:]
 
 def get_test_data(data, targets, target_indices):
