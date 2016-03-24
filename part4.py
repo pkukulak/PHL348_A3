@@ -27,7 +27,6 @@ from numpy import random
 
 import tensorflow as tf
 
-from caffe_classes import class_names
 from load_data import ACT
 
 train_x = zeros((1, 227,227,3)).astype(float32)
