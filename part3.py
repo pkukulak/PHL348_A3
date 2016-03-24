@@ -6,7 +6,7 @@ NUM_TARGS = 6
 NUM_ITERS = 6000
 
 
-def train_nn(n_hid):
+def run_part_3(n_hid):
     male_data   = load_data_part1('cropped/male/')
     female_data = load_data_part1('cropped/female/')
     data        = np.vstack((male_data, female_data))

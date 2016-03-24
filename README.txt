@@ -22,7 +22,11 @@ uncropped/
 Running the code
 ==================
 There are 5 files, part1.py through part5.py.
-Simply run "python part<N>.py" and everything
+
+Simply run "python tf_faces.py" and everything
 should be generated for you.
+
+If you want to test a single part, comment out the 
+appropriate lines in tf_faces.py.
 
 

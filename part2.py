@@ -27,7 +27,7 @@ import urllib
 from numpy import random
 from random import choice
 
-from load_data import load_data, train_valid_test_split, get_batches, train_valid_test_split_part2, load_colored_data, get_partition
+from load_data import train_valid_test_split, get_batches, train_valid_test_split_part2, load_colored_data, get_partition
 from load_data import encode_one_hot
 
 import tensorflow as tf
@@ -52,9 +52,6 @@ def conv(input, kernel, biases, k_h, k_w, c_o, s_h, s_w,  padding="VALID", group
         output_groups = [convolve(i, k) for i,k in zip(input_groups, kernel_groups)]
         conv = tf.concat(3, output_groups)
     return  tf.reshape(tf.nn.bias_add(conv, biases), conv.get_shape().as_list())
-
-
-#x = tf.Variable(i)
 
 
 def run_alex_net(i):
@@ -133,151 +130,153 @@ def run_alex_net(i):
     output = sess.run(conv4, feed_dict={x:i})
     return output
 
-################################################################################
-# Load up the data.
-################################################################################
-N_HID = 300
-BATCH_SIZE = 1 # recommended by Guerzhoy himself.
-NUM_TARGS = 6
-NUM_ITERS = 10000 # Change this to 10k and rerun.
 
-# Load the colored data this time.
-print("Loading colored data...")
-data, targets = load_colored_data()
-print("Done loading data.")
+def run_part_2():
+    ################################################################################
+    # Load up the data.
+    ################################################################################
+    N_HID = 300
+    BATCH_SIZE = 1 # recommended by Guerzhoy himself.
+    NUM_TARGS = 6
+    NUM_ITERS = 10000 # Change this to 10k and rerun.
 
-# Load the pretrained network for Alexnet.
-net_data = load("bvlc_alexnet.npy").item()
+    # Load the colored data this time.
+    print("Loading colored data...")
+    data, targets = load_colored_data()
+    print("Done loading data.")
 
-################################################################################
-# Get the activations by running alexnet over our data.
-################################################################################
-print("Computing activations")
-N, M = data.shape
-activations = run_alex_net(data.reshape((N, 227,227,3)).astype(float32))
-activations = activations /np.amax(activations) # Normalize the activations
+    # Load the pretrained network for Alexnet.
+    net_data = load("bvlc_alexnet.npy").item()
 
-################################################################################
-# Input the activations into our training data now.
-################################################################################
+    ################################################################################
+    # Get the activations by running alexnet over our data.
+    ################################################################################
+    print("Computing activations")
+    N, M = data.shape
+    activations = run_alex_net(data.reshape((N, 227,227,3)).astype(float32))
+    activations = activations /np.amax(activations) # Normalize the activations
 
-# Partition the data up (see load_data.py).
-(train_in, train_t,
-valid_in, valid_t,
-test_in, test_t) = train_valid_test_split_part2(activations, targets)
+    ################################################################################
+    # Input the activations into our training data now.
+    ################################################################################
 
-train_in = train_in.reshape((420, 13*13*384))
-valid_in = valid_in.reshape((60, 13*13*384))
-test_in = test_in.reshape((90, 13*13*384))
+    # Partition the data up (see load_data.py).
+    (train_in, train_t,
+    valid_in, valid_t,
+    test_in, test_t) = train_valid_test_split_part2(activations, targets)
 
-train_y = encode_one_hot(train_t.T)
-valid_y = encode_one_hot(valid_t.T)
-test_y = encode_one_hot(test_t.T)
+    train_in = train_in.reshape((420, 13*13*384))
+    valid_in = valid_in.reshape((60, 13*13*384))
+    test_in = test_in.reshape((90, 13*13*384))
 
-
-# Define our network.
-# 384*13*13 inputs (the activations), 300 hidden units, 6 outputs.
-# Tanh on hidden layers, softmax on output layer.
-_, M = train_in.shape
-
-# Tensorflow variables.
-x  = tf.placeholder(tf.float32, [None, M]) 
-
-# Hidden layer weights and bias.
-W0 = tf.Variable(tf.random_normal([M, N_HID], stddev=0.01))
-b0 = tf.Variable(tf.random_normal([N_HID], stddev=0.01))
-
-# Output layer weights. 
-W1 = tf.Variable(tf.random_normal([N_HID, NUM_TARGS], stddev=0.01))
-b1 = tf.Variable(tf.random_normal([NUM_TARGS], stddev=0.01))
-
-layer1 = tf.nn.tanh(tf.matmul(x, W0) + b0) 
-layer2 = tf.matmul(layer1, W1) + b1
-
-y = tf.nn.softmax(layer2)
-y_ = tf.placeholder(tf.float32, [None, NUM_TARGS])
+    train_y = encode_one_hot(train_t.T)
+    valid_y = encode_one_hot(valid_t.T)
+    test_y = encode_one_hot(test_t.T)
 
 
-lam = 0.0000
-decay_penalty =lam*tf.reduce_sum(tf.square(W0))+lam*tf.reduce_sum(tf.square(W1))
-NLL = -tf.reduce_sum(y_*tf.log(y))+decay_penalty
+    # Define our network.
+    # 384*13*13 inputs (the activations), 300 hidden units, 6 outputs.
+    # Tanh on hidden layers, softmax on output layer.
+    _, M = train_in.shape
 
-train_step = tf.train.GradientDescentOptimizer(0.001).minimize(NLL)
+    # Tensorflow variables.
+    x  = tf.placeholder(tf.float32, [None, M]) 
 
-init = tf.initialize_all_variables()
-sess = tf.Session()
-sess.run(init)
-correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    # Hidden layer weights and bias.
+    W0 = tf.Variable(tf.random_normal([M, N_HID], stddev=0.01))
+    b0 = tf.Variable(tf.random_normal([N_HID], stddev=0.01))
 
-# Arrays for storing learning curves.
-test_accs = []
-test_lps = []
+    # Output layer weights. 
+    W1 = tf.Variable(tf.random_normal([N_HID, NUM_TARGS], stddev=0.01))
+    b1 = tf.Variable(tf.random_normal([NUM_TARGS], stddev=0.01))
 
-valid_accs = []
-valid_lps = []
+    layer1 = tf.nn.tanh(tf.matmul(x, W0) + b0) 
+    layer2 = tf.matmul(layer1, W1) + b1
 
-train_accs = []
-train_lps = []
-
-# Train the network.
-print("Training...")
-for i in xrange(NUM_ITERS):
-    batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE)
-    batch_in, batch_t = choice(zip(batches_in, batches_t))
-
-    batch_in = batch_in.reshape(-1, M)
-    batch_t = encode_one_hot(batch_t.T)
-    sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
-
-    # Check performance every 50 iterations.
-    if i % 50 == 0:
-        print "i=",i
-        valid_x = valid_in.reshape(-1, M)
-        valid_acc = sess.run(accuracy, feed_dict={x: valid_x, y_: valid_y})
-        valid_accs += [valid_acc]
-        valid_lp = sess.run(NLL, feed_dict={x: valid_x, y_: valid_y})
-        valid_lps += [valid_lp]
-
-        test_x = test_in.reshape(-1, M)
-        test_acc = sess.run(accuracy, feed_dict={x: test_x, y_: test_y})
-        test_accs += [test_acc]
-        test_lp = sess.run(NLL, feed_dict={x: test_x, y_: test_y})
-        test_lps += [test_lp]
-
-        train_acc = sess.run(accuracy, feed_dict={x: train_in, y_: train_y})
-        train_accs += [train_acc]
-        train_lp = sess.run(NLL, feed_dict={x: train_in, y_: train_y})
-        train_lps += [train_lp]
-
-        print 'TEST ACCURACY  = ', test_acc
-        print 'VALID ACCURACY = ', valid_acc
-        print 'TRAIN ACCURACY = ', train_acc
-
-#####################################################################
-#  Plot the data
-#####################################################################
-red_patch = mpatches.Patch(color='red', label='Validation')
-blue_patch = mpatches.Patch(color='blue', label='Training')
-green_patch = mpatches.Patch(color='green', label='Test')
-
-# Plot the learning curves.
-plt.figure()
-plt.xlabel('Iteration')
-plt.ylabel('Cost')
-plt.plot(train_lps, 'b', valid_lps, 'r', test_lps, 'g')
-plt.legend(handles=[red_patch, blue_patch, green_patch], loc=1)
-plt.show()
-
-# Plot the accuracy.
-plt.figure()
-plt.xlabel('Iteration')
-plt.ylabel('Accuracy')
-plt.plot(train_accs, 'b', valid_accs, 'r', test_accs, 'g')
-plt.legend(handles=[red_patch, blue_patch, green_patch], loc=4)
-plt.show()
+    y = tf.nn.softmax(layer2)
+    y_ = tf.placeholder(tf.float32, [None, NUM_TARGS])
 
 
-print("Finished part 2. Exiting...")
+    lam = 0.0000
+    decay_penalty =lam*tf.reduce_sum(tf.square(W0))+lam*tf.reduce_sum(tf.square(W1))
+    NLL = -tf.reduce_sum(y_*tf.log(y))+decay_penalty
+
+    train_step = tf.train.GradientDescentOptimizer(0.001).minimize(NLL)
+
+    init = tf.initialize_all_variables()
+    sess = tf.Session()
+    sess.run(init)
+    correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    # Arrays for storing learning curves.
+    test_accs = []
+    test_lps = []
+
+    valid_accs = []
+    valid_lps = []
+
+    train_accs = []
+    train_lps = []
+
+    # Train the network.
+    print("Training...")
+    for i in xrange(NUM_ITERS):
+        batches_in, batches_t = get_batches(train_in, train_t, BATCH_SIZE)
+        batch_in, batch_t = choice(zip(batches_in, batches_t))
+
+        batch_in = batch_in.reshape(-1, M)
+        batch_t = encode_one_hot(batch_t.T)
+        sess.run(train_step, feed_dict={x: batch_in, y_: batch_t})
+
+        # Check performance every 50 iterations.
+        if i % 50 == 0:
+            print "i=",i
+            valid_x = valid_in.reshape(-1, M)
+            valid_acc = sess.run(accuracy, feed_dict={x: valid_x, y_: valid_y})
+            valid_accs += [valid_acc]
+            valid_lp = sess.run(NLL, feed_dict={x: valid_x, y_: valid_y})
+            valid_lps += [valid_lp]
+
+            test_x = test_in.reshape(-1, M)
+            test_acc = sess.run(accuracy, feed_dict={x: test_x, y_: test_y})
+            test_accs += [test_acc]
+            test_lp = sess.run(NLL, feed_dict={x: test_x, y_: test_y})
+            test_lps += [test_lp]
+
+            train_acc = sess.run(accuracy, feed_dict={x: train_in, y_: train_y})
+            train_accs += [train_acc]
+            train_lp = sess.run(NLL, feed_dict={x: train_in, y_: train_y})
+            train_lps += [train_lp]
+
+            print 'TEST ACCURACY  = ', test_acc
+            print 'VALID ACCURACY = ', valid_acc
+            print 'TRAIN ACCURACY = ', train_acc
+
+    #####################################################################
+    #  Plot the data
+    #####################################################################
+    red_patch = mpatches.Patch(color='red', label='Validation')
+    blue_patch = mpatches.Patch(color='blue', label='Training')
+    green_patch = mpatches.Patch(color='green', label='Test')
+
+    # Plot the learning curves.
+    plt.figure()
+    plt.xlabel('Iteration')
+    plt.ylabel('Cost')
+    plt.plot(train_lps, 'b', valid_lps, 'r', test_lps, 'g')
+    plt.legend(handles=[red_patch, blue_patch, green_patch], loc=1)
+    plt.show()
+
+    # Plot the accuracy.
+    plt.figure()
+    plt.xlabel('Iteration')
+    plt.ylabel('Accuracy')
+    plt.plot(train_accs, 'b', valid_accs, 'r', test_accs, 'g')
+    plt.legend(handles=[red_patch, blue_patch, green_patch], loc=4)
+    plt.show()
+
+
+    print("Finished part 2. Exiting...")
 
 
