@@ -6,7 +6,7 @@ BATCH_SIZE = 60
 NUM_TARGS = 6
 NUM_ITERS = 5000
 
-if __name__ == '__main__':
+def run_part_1():
     male_data   = load_data_part1('cropped/male/')
     female_data = load_data_part1('cropped/female/')
     data        = np.vstack((male_data, female_data))

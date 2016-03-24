@@ -5,23 +5,24 @@ BATCH_SIZE = 60
 NUM_TARGS = 6
 NUM_ITERS = 6000
 
-male_data   = load_data_part1('cropped/male/')
-female_data = load_data_part1('cropped/female/')
-data        = np.vstack((male_data, female_data))
-(train_in, train_t,
-valid_in, valid_t,
-test_in, test_t)    = train_valid_test_split(data)
-_, M = train_in.shape
-
-train_y = encode_one_hot(train_t.T)
-
-test_x = test_in.reshape(-1, M)
-test_y = encode_one_hot(test_t.T)
-
-valid_x = valid_in.reshape(-1, M)
-valid_y = encode_one_hot(valid_t.T)
 
 def train_nn(n_hid):
+    male_data   = load_data_part1('cropped/male/')
+    female_data = load_data_part1('cropped/female/')
+    data        = np.vstack((male_data, female_data))
+    (train_in, train_t,
+    valid_in, valid_t,
+    test_in, test_t)    = train_valid_test_split(data)
+    _, M = train_in.shape
+
+    train_y = encode_one_hot(train_t.T)
+
+    test_x = test_in.reshape(-1, M)
+    test_y = encode_one_hot(test_t.T)
+
+    valid_x = valid_in.reshape(-1, M)
+    valid_y = encode_one_hot(valid_t.T)
+
     # Tensorflow variables.
     x  = tf.placeholder(tf.float32, [None, M])
 
@@ -71,8 +72,8 @@ def train_nn(n_hid):
             print 'TRAIN ACCURACY = ', train_acc
 
     # Vizzalize sum waits
-    feature_1 = sess.run(W0)[:, 543]
-    feature_2 = sess.run(W0)[:, 748]
+    feature_1 = sess.run(W0)[:, 2]
+    feature_2 = sess.run(W0)[:, 150]
 
     fig = figure()
     ax = fig.gca()
@@ -84,8 +85,3 @@ def train_nn(n_hid):
     heatmap = ax.imshow(feature_2.reshape(60, 60), cmap=cm.coolwarm)
     show()
 
-if __name__ == '__main__':
-    train_nn(300)
-    train_nn(800)
-
-    print("Done Part 3. Exiting...")
